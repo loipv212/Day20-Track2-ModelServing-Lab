@@ -4,10 +4,12 @@ Step up from "Python library" to "real serving stack". You'll launch `llama-serv
 
 This is the same shape of stack the deck talks about with vLLM and SGLang — just on a model and runtime small enough to fit on a laptop.
 
+> **Two servers, one job each.** `make serve` (the `llama-cpp-python` module) is the zero-build path for chat + load testing — but it has **no `/metrics` endpoint**. The observability step (`/metrics`, batching gauges like `n_busy_slots_per_decode`) needs the **native** `llama-server` binary: `make build-llama` once, then `make serve-native`. Both speak the same OpenAI-compatible API on :8080.
+
 ## What you'll see
 
 - `POST /v1/chat/completions` works with the OpenAI Python SDK pointed at `http://localhost:8080/v1`
-- `GET /metrics` returns Prometheus text including `llamacpp:tokens_predicted_total`, `llamacpp:prompt_tokens_total`, `llamacpp:n_decode_total`, `llamacpp:kv_cache_usage_ratio`
+- `GET /metrics` returns Prometheus text including `llamacpp:tokens_predicted_total`, `llamacpp:prompt_tokens_total`, `llamacpp:n_decode_total`, `llamacpp:n_busy_slots_per_decode`, `llamacpp:requests_processing`
 - `--parallel N --cont-batching` enables continuous batching (see deck §2)
 - Locust runs P50/P95/P99 under load and emits a histogram
 
@@ -15,7 +17,7 @@ This is the same shape of stack the deck talks about with vLLM and SGLang — ju
 
 There are two ways to launch `llama-server`:
 
-### A. From the `llama-cpp-python` install (always works)
+### A. Python server — chat + load, zero build (`make serve`, NO /metrics)
 
 ```bash
 # from repo root, .venv activated
@@ -25,9 +27,9 @@ python -m llama_cpp.server --model "$(jq -r .primary_model models/active.json)" 
     --n_gpu_layers 99
 ```
 
-### B. From a native llama.cpp build (faster, used by the bonus track)
+### B. Native server — observability with `/metrics` (`make build-llama`, then `make serve-native`)
 
-If you've already done `BONUS-llama-cpp-optimization/` and have a `bin/llama-server` from source:
+The native binary is the **only** one that serves `/metrics`. Build it once (`make build-llama`), then `make serve-native` (or run it directly):
 
 ```bash
 ./BONUS-llama-cpp-optimization/llama.cpp/build/bin/llama-server \
@@ -45,7 +47,7 @@ Either way, leave it running in one terminal. In a second terminal:
 # Smoke-test the OpenAI API
 python 02-llama-cpp-server/smoke-test.py
 
-# Scrape metrics once
+# Scrape metrics once (server B / `make serve-native` only — server A has no /metrics)
 curl -s http://localhost:8080/metrics | head -40
 
 # Run the load test
@@ -69,13 +71,13 @@ After 1 min locust prints P50/P95/P99 in the table at the bottom. Re-run with `-
 |---|---|---|
 | `--parallel N` | Max concurrent slots (continuous batching width) | Throughput vs `N=1,2,4,8` |
 | `--cont-batching` | Enable in-flight (continuous) batching | P95 with vs without, at -u 50 |
-| `--ctx-size 4096` | Larger context window per slot | KV-cache RAM (`llamacpp:kv_cache_usage_ratio`) |
+| `--ctx-size 4096` | Larger context window per slot | Process RSS (RAM) as ctx grows (`ps` / Activity Monitor) |
 | `--cache-type-k q8_0` `--cache-type-v q8_0` | Quantize KV cache (memory ↓, slight quality ↓) | RAM saved vs quality |
 | `--metrics` | Enable Prometheus endpoint | (must be on for everything else here) |
 
 ## Deliverable
 
-Re-run with `python 02-llama-cpp-server/record-metrics.py --duration 60 --concurrency 10` and append the resulting summary to `benchmarks/02-server-results.md`. Then re-run at `--concurrency 50` and add a second row.
+With the **native** server running (`make serve-native`), drive load (`make load-10`) and in a third terminal run `make metrics` (`record-metrics.py --duration 60`) to capture `llamacpp:n_busy_slots_per_decode` / `requests_processing` etc. into `benchmarks/02-server-metrics.csv`. Re-run under `make load-50` for a contended sample.
 
 ## Deck mapping
 

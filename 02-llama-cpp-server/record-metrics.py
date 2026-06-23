@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Poll llama-server's /metrics every N seconds during a load run, write CSV.
+"""Poll the native llama-server's /metrics every N seconds during a load run, write CSV.
+
+NOTE: only the native llama.cpp `llama-server` binary exposes /metrics. The Python
+server (`make serve`) does NOT. Start the native one first: `make build-llama` then
+`make serve-native` (it boots on :8080 with --metrics).
 
 Usage:
-    # In one terminal: start llama-server.
-    # In another:      start locust.
-    # In a third:      python 02-llama-cpp-server/record-metrics.py --duration 60
+    # Terminal 1: make serve-native      # native server WITH /metrics on :8080
+    # Terminal 2: make load-10           # drive some traffic
+    # Terminal 3: python 02-llama-cpp-server/record-metrics.py --duration 60
 """
 from __future__ import annotations
 
@@ -22,8 +26,6 @@ INTERESTING = {
     "llamacpp:n_busy_slots_per_decode",
     "llamacpp:tokens_predicted_total",
     "llamacpp:prompt_tokens_total",
-    "llamacpp:kv_cache_usage_ratio",
-    "llamacpp:kv_cache_tokens",
     "llamacpp:requests_processing",
     "llamacpp:requests_deferred",
 }
@@ -65,6 +67,7 @@ def main() -> int:
 
     deadline = time.time() + args.duration
     rows: list[dict] = []
+    fails = 0
     print(f"==> Recording {args.url} for {args.duration}s, every {args.interval}s")
     while time.time() < deadline:
         sample = scrape(args.url)
@@ -75,15 +78,24 @@ def main() -> int:
                 f"   t={sample['t']:.0f}  "
                 f"reqs_proc={sample.get('llamacpp:requests_processing', 0):.0f}  "
                 f"deferred={sample.get('llamacpp:requests_deferred', 0):.0f}  "
-                f"kv_ratio={sample.get('llamacpp:kv_cache_usage_ratio', 0):.2f}  "
+                f"busy_slots={sample.get('llamacpp:n_busy_slots_per_decode', 0):.2f}  "
                 f"tok_pred={sample.get('llamacpp:tokens_predicted_total', 0):.0f}"
             )
         else:
+            fails += 1
             print("   (scrape failed — is llama-server running with --metrics?)")
+            if not rows and fails >= 3:
+                print("   3 scrapes failed with nothing on the endpoint — stopping early.")
+                break
         time.sleep(args.interval)
 
     if not rows:
-        print("ERROR: no samples collected.", file=sys.stderr)
+        print(f"ERROR: no /metrics samples collected from {args.url}.", file=sys.stderr)
+        print("  The Python server (`make serve`) has NO /metrics endpoint.", file=sys.stderr)
+        print("  Use the NATIVE llama.cpp server instead:", file=sys.stderr)
+        print("    make build-llama      # one-time: build llama-server from source", file=sys.stderr)
+        print("    make serve-native     # starts it WITH --metrics on :8080", file=sys.stderr)
+        print("  then drive load (make load-10) and re-run `make metrics`.", file=sys.stderr)
         return 1
 
     fieldnames = sorted({k for r in rows for k in r.keys()})

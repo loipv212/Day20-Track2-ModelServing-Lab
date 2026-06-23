@@ -2,7 +2,7 @@
 name = "day20-modelserving-lab"
 version = "0.1.0"
 description = "Day 20 (AICB-P2T2) lab — Model Serving & Inference Optimization with llama.cpp"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
 
 # Keep deps in requirements.txt — pyproject is here mostly so `pip install -e .` works.

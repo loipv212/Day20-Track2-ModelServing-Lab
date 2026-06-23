@@ -17,10 +17,10 @@ Submit screenshots + artifacts in repo. The rubric is checked against **what's a
 | 3 | 01-quickstart | `benchmark.py` produces a P50/P95/P99 table for **both** Q4_K_M and Q2_K | `benchmarks/01-quickstart-results.md` exists, has 2-row table | 10 |
 | 4 | 01-quickstart | TTFT and TPOT reported separately (not just E2E) | Same file; values plausible (TTFT > 0, TPOT > 0) | 5 |
 | 5 | 02-server | `llama-server` runs and serves OpenAI-compat `/v1/chat/completions` | `submission/screenshots/03-server-running.png` showing both server log and a successful `curl` | 10 |
-| 6 | 02-server | `/metrics` Prometheus endpoint shows non-zero `llamacpp:tokens_predicted_total` after at least one request | Same screenshot or separate `curl /metrics` excerpt | 5 |
+| 6 | 02-server | `/metrics` from the **native** server (`make serve-native`) shows non-zero `llamacpp:tokens_predicted_total` after a request | `curl :8080/metrics` excerpt (Python `make serve` has no /metrics — build via `make build-llama`) | 5 |
 | 7 | 02-server | locust load run at `-u 10` for 60s, P95 reported | `submission/screenshots/04-locust-10.png` + table in REFLECTION.md §3 | 10 |
 | 8 | 02-server | locust load run at `-u 50` for 60s, P95 reported | `submission/screenshots/05-locust-50.png` + table in REFLECTION.md §3 | 10 |
-| 9 | 02-server | KV-cache usage observation (peak `llamacpp:kv_cache_usage_ratio`) reported in writeup | REFLECTION.md §3 — observation paragraph; CSV from `record-metrics.py` optional but recommended | 5 |
+| 9 | 02-server | Continuous-batching observation under load (peak `llamacpp:n_busy_slots_per_decode` / `requests_processing`) from the native server reported in writeup | REFLECTION.md §3 — observation paragraph; CSV from `make metrics` (needs `make serve-native`) optional but recommended | 5 |
 | 10 | 03-integration | `pipeline.py` runs end-to-end (3 example queries) and prints retrieved-context provenance | Terminal screenshot or paste in REFLECTION.md §4 | 10 |
 | 11 | 03-integration | At least 3 of N16/N17/N18/N19 wired (or explicitly stubbed with reason) | REFLECTION.md §4 enumerates which pieces are real vs stubbed | 5 |
 | 12 | submission | REFLECTION.md filled — every section has student-supplied content (not just template placeholders) | `make verify` exit code 0 | 10 |

@@ -15,6 +15,8 @@ Use this chart to pick a model, a quantization, and a llama.cpp backend that wil
 
 Rule of thumb: **GGUF Q4_K_M file size ≤ ½ × free RAM**. The other half holds OS, browser, KV cache, and headroom.
 
+> **2026 model options:** the tiers above are safe defaults. Newer open-weight small models drop in at the same RAM tiers — **Qwen3** (1.7B / 4B / 8B), **Gemma 3** (1B / 4B, with QAT-INT4 builds), **Llama-3.3**, and **gpt-oss-20B** (MXFP4, MoE 3.6B active, ~16 GB) for 32 GB+ laptops. Same GGUF + llama.cpp path — just swap the Hugging Face repo id in `00-setup/download-model.py`.
+
 `00-setup/download-model.py` reads `hardware.json` (from `detect-hardware.py`) and pulls the right tier automatically.
 
 ## 2. llama.cpp backend by hardware

@@ -34,7 +34,7 @@ Run `locust -f 02-llama-cpp-server/load-test.py --headless -u N -r 1 -t 1m` for 
 | 10 | | | | | |
 | 50 | | | | | |
 
-**KV-cache observation:** _peak `llamacpp:kv_cache_usage_ratio` from `record-metrics.py` was 0.XX at concurrency 50, which means…_
+**Continuous-batching observation:** _peak `llamacpp:n_busy_slots_per_decode` / `requests_processing` from `record-metrics.py` was _ at concurrency 50, which means…_
 
 ## Track 03 — Milestone Integration
 

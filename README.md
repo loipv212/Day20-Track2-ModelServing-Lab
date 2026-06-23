@@ -41,10 +41,11 @@ make probe          Probe hardware → hardware.json
 make setup          Install deps + build llama-cpp-python + download model
 make bench          Track 01 — TTFT/TPOT baseline + Q4_K_M vs Q2_K
 make serve          Track 02 — llama-server on :8080 (foreground)
+make serve-native   Track 02 (observability) — native server WITH /metrics (needs make build-llama)
 make smoke          Track 02 — smoke-test the running server
 make load-10        Track 02 — locust 10 users, 1 min
 make load-50        Track 02 — locust 50 users, 1 min
-make metrics        Track 02 — record /metrics for 60s
+make metrics        Track 02 (observability) — record /metrics 60s (needs make serve-native)
 make pipeline       Track 03 — RAG → llama-server pipeline
 make build-llama    Bonus — clone + build llama.cpp from source
 make sweep-thread   Bonus — sweep -t (thread count)
@@ -53,6 +54,9 @@ make sweep-ctx      Bonus — sweep context length
 make sweep-batch    Bonus — sweep batch sizes
 make sweep-gpu      Bonus — sweep GPU offload (CUDA/Metal/Vulkan/ROCm)
 make mlx-compare    Bonus (Apple Silicon) — MLX vs llama.cpp Metal
+make serve-embed    Bonus §5 — embedding server (llama-server --embedding) :8081
+make embed-demo     Bonus §5 — embedding/reranker serving demo
+make semantic-cache Bonus §5 — semantic cache (3-cache stack) demo
 make verify         Pre-submission sanity check (run before push!)
 make clean          Wipe generated artifacts (keep models, REFLECTION, screenshots)
 ```
@@ -82,14 +86,18 @@ Mỗi track tương ứng với một phần của deck Day 20. Pass condition l
 |---|---|---|---|
 | §0 Latency Taxonomy (TTFT/TPOT/Goodput) | 01-quickstart | Đo TTFT/TPOT/P95 trên laptop của mình | Có bảng P50/P95/P99 cho 2 quantizations |
 | §1 Quantization (FP8/AWQ/GGUF/NVFP4) | 01-quickstart + bonus quant-sweep | So sánh Q2_K → Q8_0, RAM vs latency | Side-by-side numbers committed |
-| §2 KV Cache & PagedAttention | 02-server (`--cache-type-k/-v`, `--parallel`) | Quan sát KV cache usage dưới load | Peak `kv_cache_usage_ratio` reported |
-| §3 Single-Node Serving (vLLM, SGLang, llama.cpp) | 02-server (llama-server) | Stand up OpenAI-compat HTTP server | locust 10 + 50 user runs committed |
+| §2 KV Cache & PagedAttention | 02-server: `make serve-native` (`--metrics`, `--cache-type-k/-v`, `--parallel`) | Continuous batching qua native `/metrics` dưới load | Peak `n_busy_slots_per_decode` / `requests_processing` reported |
+| §2 Spec Decoding (EAGLE-3 / MTP) | bonus challenge **C1** (`--draft-model`) | Draft+target speedup; llama.cpp merged MTP (2026) | tokens/s with vs without spec-decode |
+| §3 Single-Node Serving (vLLM, SGLang, llama.cpp) | 02-server (`llama_cpp.server`) | Stand up OpenAI-compat HTTP server | locust 10 + 50 user runs committed |
 | §3 Production Tuning (memory, scheduling, observability) | 02-server tuning + bonus thread-sweep | Đo P95 thay đổi khi tune `--parallel`, `-t`, `--ctx-size` | Sweep table + reflection paragraph |
 | §3 Backend Selection (FA3/FA4/FlashInfer) | bonus build-from-source + gpu-offload | Build llama.cpp với backend đúng cho phần cứng | `bin/llama-bench --version` chạy + speedup quantified |
 | §4 Distributed (TP/PP/EP/DP) | (concept-only — out of scope cho lab này) | — | — |
-| §5 Auto-scaling | (concept-only) | — | — |
-| §6 Edge & Hardware | bonus quant-sweep + 03-integration | Pick model tier theo RAM | Recommended tier khớp với hardware.json |
-| §7 Production SLA (Goodput@SLO) | submission/REFLECTION.md | Set SLO target và đo gap | "Single change that mattered most" paragraph |
+| §5 Serving Regimes — Embedding / Reranker | bonus **`embedding-serving.py`** (`make serve-embed`) | Prefill-bound serving, no KV cache; cosine retrieval | embedding endpoint ranks a corpus |
+| §5 Serving Regimes — Semantic Caching | bonus challenge **C8** (`semantic-cache-demo.py`) | Meaning-based cache above the KV cache | hit-rate + calls-saved table |
+| §5 Serving Regimes — VLM / Routing / Power / Confidential | (concept-only — datacenter-shaped) | — | — |
+| §6 Auto-scaling & Operations | (concept-only) | — | — |
+| §7 Edge & Hardware | bonus quant-sweep + 03-integration | Pick model tier theo RAM | Recommended tier khớp với hardware.json |
+| §8 Production SLA (Goodput@SLO) | submission/REFLECTION.md | Set SLO target và đo gap | "Single change that mattered most" paragraph |
 
 ---
 
@@ -163,6 +171,20 @@ So sánh MLX (Apple's unified-memory ML framework) với llama.cpp Metal trên c
 pip install mlx mlx-lm
 make mlx-compare
 ```
+
+### Track C — Serving regimes (§5, runnable on a laptop)
+
+Deck §5 ("Serving Regimes & Cross-Cutting Concerns 2026") is mostly datacenter-shaped — but two of its regimes run fine on your laptop with llama.cpp:
+
+```bash
+make serve-embed &      # embedding server (llama-server --embedding) on :8081
+make embed-demo         # §5 Embedding/reranker: prefill-bound, no KV cache, cosine retrieval
+
+make serve &            # chat server on :8080  (semantic cache needs both)
+make semantic-cache     # §5 Semantic caching: meaning-based cache above the KV cache
+```
+
+Both scripts also run with `--offline` (synthetic embeddings, no server) so you can read the logic on any machine. Write-up hook: semantic caching is the cache *above* the KV cache — report your hit rate and the threshold tradeoff. Full detail in [`BONUS-llama-cpp-optimization/CHALLENGES.md`](BONUS-llama-cpp-optimization/CHALLENGES.md) (C8, C9).
 
 ### Cách viết bonus writeup
 

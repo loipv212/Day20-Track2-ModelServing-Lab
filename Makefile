@@ -47,6 +47,9 @@ bench: ## Track 01 — TTFT/TPOT/P95 baseline + Q4_K_M vs Q2_K
 serve: ## Track 02 — start llama-server on :8080 (foreground)
 	@bash 02-llama-cpp-server/start-server.sh
 
+serve-native: ## Track 02 (observability) — native llama-server WITH /metrics on :8080 (needs `make build-llama`)
+	@bash 02-llama-cpp-server/start-server-native.sh
+
 smoke: ## Track 02 — smoke-test the running server
 	@$(PY) 02-llama-cpp-server/smoke-test.py
 
@@ -56,7 +59,7 @@ load-10: ## Track 02 — locust 10 users, 1 min
 load-50: ## Track 02 — locust 50 users, 1 min
 	@$(LOCUST) -f 02-llama-cpp-server/load-test.py --headless -u 50 -r 1 -t 1m --host http://localhost:8080
 
-metrics: ## Track 02 — record /metrics for 60s into benchmarks/02-server-metrics.csv
+metrics: ## Track 02 (observability) — record /metrics 60s (needs the native server: make serve-native)
 	@$(PY) 02-llama-cpp-server/record-metrics.py --duration 60
 
 # ─────────────────────────────────────────────────────────────
@@ -72,8 +75,9 @@ pipeline: ## Track 03 — run RAG → llama-server pipeline (server must be on :
 
 build-llama: ## Bonus — clone + build llama.cpp from source for your hardware
 	@bash -c 'set -e; \
+	  command -v cmake >/dev/null || { echo "cmake not found - run: make setup (installs cmake), or: brew install cmake" >&2; exit 1; }; \
 	  cd BONUS-llama-cpp-optimization && \
-	  if [ ! -d llama.cpp ]; then git clone --depth 1 https://github.com/ggml-org/llama.cpp; fi; \
+	  if [ ! -d llama.cpp ]; then git clone --depth 1 --branch b9771 https://github.com/ggml-org/llama.cpp; fi; \
 	  cd llama.cpp && \
 	  cmake -B build $(LLAMA_CMAKE_FLAGS) -DGGML_NATIVE=ON && \
 	  cmake --build build -j --config Release'
@@ -97,6 +101,19 @@ mlx-compare: ## Bonus (Apple Silicon only) — MLX vs llama.cpp Metal
 	@$(PY) BONUS-mlx-macos/compare-mlx-vs-llama-cpp.py
 
 # ─────────────────────────────────────────────────────────────
+# Bonus §5 — Serving regimes (embedding serving + semantic cache)
+# ─────────────────────────────────────────────────────────────
+
+serve-embed: ## Bonus §5 — embedding server (llama_cpp.server --embedding) on :8081
+	@bash 02-llama-cpp-server/start-embedding-server.sh
+
+embed-demo: ## Bonus §5 — embedding/reranker serving demo (run `make serve-embed` first; --offline works with no server)
+	@$(PY) BONUS-llama-cpp-optimization/embedding-serving.py
+
+semantic-cache: ## Bonus §5 — semantic cache demo (needs `make serve` + `make serve-embed`; --offline works with no server)
+	@$(PY) BONUS-llama-cpp-optimization/semantic-cache-demo.py
+
+# ─────────────────────────────────────────────────────────────
 # Submission readiness
 # ─────────────────────────────────────────────────────────────
 
@@ -116,6 +133,7 @@ clean: ## Wipe generated artifacts (keeps models/, REFLECTION.md, screenshots/)
 clean-all: clean ## Wipe everything including downloaded models + llama.cpp source build
 	rm -rf models BONUS-llama-cpp-optimization/llama.cpp
 
-.PHONY: help probe setup bench serve smoke load-10 load-50 metrics pipeline \
+.PHONY: help probe setup bench serve serve-native smoke load-10 load-50 metrics pipeline \
         build-llama sweep-thread sweep-quant sweep-ctx sweep-batch sweep-gpu mlx-compare \
+        serve-embed embed-demo semantic-cache \
         verify clean clean-all
