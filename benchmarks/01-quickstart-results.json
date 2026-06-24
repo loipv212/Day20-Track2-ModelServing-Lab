@@ -1,0 +1,36 @@
+{
+  "primary": {
+    "label": "primary (Q4_K_M)",
+    "model_path": "/home/suns/Documents/Lab_Vin/Track_2/Day20-Track2-ModelServing-Lab/models/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "n_threads": 12,
+    "n_ctx": 2048,
+    "n_batch": 512,
+    "n_gpu_layers": 99,
+    "load_ms": 854.7,
+    "ttft_ms_p50": 144.6,
+    "ttft_ms_p95": 219.5,
+    "tpot_ms_p50": 40.64,
+    "tpot_ms_p95": 41.8,
+    "e2e_ms_p50": 2728.4,
+    "e2e_ms_p95": 2784.9,
+    "e2e_ms_p99": 2794.0,
+    "decode_rate_tok_s": 24.6
+  },
+  "compare": {
+    "label": "compare (Q2_K)",
+    "model_path": "/home/suns/Documents/Lab_Vin/Track_2/Day20-Track2-ModelServing-Lab/models/qwen2.5-1.5b-instruct-q2_k.gguf",
+    "n_threads": 12,
+    "n_ctx": 2048,
+    "n_batch": 512,
+    "n_gpu_layers": 99,
+    "load_ms": 222.7,
+    "ttft_ms_p50": 163.8,
+    "ttft_ms_p95": 256.3,
+    "tpot_ms_p50": 30.55,
+    "tpot_ms_p95": 33.59,
+    "e2e_ms_p50": 2059.9,
+    "e2e_ms_p95": 2328.0,
+    "e2e_ms_p99": 2387.7,
+    "decode_rate_tok_s": 32.7
+  }
+}
